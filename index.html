@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>31 - Baraja Espanola</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700&family=DM+Serif+Display:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-grain"></div>
+    <main class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">Baraja Espanola</p>
+        <h1> 31 </h1>
+      </header>
+
+      <section class="panel" id="authPanel">
+        <h2>Acceso</h2>
+        <p class="muted">Inicia sesion para jugar. Usa email + password de Supabase Auth.</p>
+        <form id="authForm" class="form-grid">
+          <label>
+            Email
+            <input id="emailInput" type="email" required placeholder="tu@email.com" />
+          </label>
+          <label>
+            Password
+            <input id="passwordInput" type="password" required minlength="6" placeholder="******" />
+          </label>
+          <div class="row-actions">
+            <button type="submit" data-mode="signin">Entrar</button>
+            <button type="submit" data-mode="signup" class="ghost">Crear cuenta</button>
+            <button type="button" id="signOutBtn" class="danger hidden">Cerrar sesion</button>
+          </div>
+        </form>
+        <p id="authStatus" class="status"></p>
+      </section>
+              
+      <section class="panel hidden" id="gamePanel">
+        <div class="panel-head">
+          <h2>Partida</h2>
+            <div id="lobbyBox" class="setup-box">
+              <p class="muted">Crea una sala o unete por codigo.</p>
+        <div id="setupBox" class="setup-box">
+                <button id="createRoomBtn">Crear sala</button>
+              </div>
+              <div class="row-actions wrap">
+                <input id="roomCodeInput" type="text" maxlength="8" placeholder="Codigo" />
+                <button id="joinRoomBtn" class="ghost">Unirme</button>
+          <div class="row-actions">
+              <p id="lobbyStatus" class="status"></p>
+            </div>
+
+            <div id="roomBox" class="hidden">
+              <div class="table-meta" id="roomMeta"></div>
+
+              <article class="panel subpanel">
+                <h3>Miembros en sala</h3>
+                <div id="roomMembersList" class="players-list"></div>
+                <div class="row-actions wrap">
+                  <button id="startMatchBtn">Iniciar partida</button>
+                  <button id="leaveRoomBtn" class="ghost">Salir de sala</button>
+                </div>
+              </article>
+            <button id="startMatchBtn">Iniciar partida</button>
+              <div id="tableBox" class="hidden">
+          </div>
+        </div>
+
+        <div id="tableBox" class="hidden">
+          <div class="table-meta" id="roundMeta"></div>
+
+          <div class="table-grid">
+            <article class="panel subpanel">
+              <h3>Jugadores</h3>
+              <div id="playersList" class="players-list"></div>
+            </article>
+
+            <article class="panel subpanel">
+              <h3>Mesa</h3>
+              <div class="deck-zone">
+                <div>
+                  <p class="muted mini">Mazo</p>
+                  <div class="card-stack" id="drawPileCard"></div>
+                  <p id="drawCount" class="mini"></p>
+                </div>
+                <div>
+                  <p class="muted mini">Descarte</p>
+                  <div class="card-stack" id="discardPileCard"></div>
+                </div>
+              </div>
+              <div class="row-actions wrap">
+                <button id="drawFromDeckBtn">Robar del mazo</button>
+                <button id="drawFromDiscardBtn" class="ghost">Robar descarte</button>
+                <button id="closeRoundBtn" class="danger">Cerrar ronda</button>
+              </div>
+              <p class="muted mini">Para descartar: roba primero y luego pulsa una carta de tu mano.</p>
+            </article>
+          </div>
+
+          <article class="panel subpanel">
+            <h3>Mano del turno actual</h3>
+            <p id="turnHint" class="muted"></p>
+            <div id="currentHand" class="hand"></div>
+          </article>
+
+          <article class="panel subpanel">
+            <h3>Log</h3>
+            <div id="logBox" class="log-box"></div>
+          </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="roundDialog">
+      <article class="dialog-body">
+        <h3 id="dialogTitle"></h3>
+        <div id="dialogContent"></div>
+        <form method="dialog">
+          <button id="continueBtn">Continuar</button>
+        </form>
+      </article>
+    </dialog>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
