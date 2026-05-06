@@ -44,33 +44,32 @@
       <section class="panel hidden" id="gamePanel">
         <div class="panel-head">
           <h2>Partida</h2>
-            <div id="lobbyBox" class="setup-box">
-              <p class="muted">Crea una sala o unete por codigo.</p>
-        <div id="setupBox" class="setup-box">
-                <button id="createRoomBtn">Crear sala</button>
-              </div>
-              <div class="row-actions wrap">
-                <input id="roomCodeInput" type="text" maxlength="8" placeholder="Codigo" />
-                <button id="joinRoomBtn" class="ghost">Unirme</button>
-          <div class="row-actions">
-              <p id="lobbyStatus" class="status"></p>
-            </div>
-
-            <div id="roomBox" class="hidden">
-              <div class="table-meta" id="roomMeta"></div>
-
-              <article class="panel subpanel">
-                <h3>Miembros en sala</h3>
-                <div id="roomMembersList" class="players-list"></div>
-                <div class="row-actions wrap">
-                  <button id="startMatchBtn">Iniciar partida</button>
-                  <button id="leaveRoomBtn" class="ghost">Salir de sala</button>
-                </div>
-              </article>
-            <button id="startMatchBtn">Iniciar partida</button>
-              <div id="tableBox" class="hidden">
-          </div>
+          <p id="sessionInfo" class="muted"></p>
         </div>
+
+        <div id="lobbyBox" class="setup-box">
+          <p class="muted">Crea una sala o unete por codigo.</p>
+          <div class="row-actions">
+            <button id="createRoomBtn">Crear sala</button>
+          </div>
+          <div class="row-actions wrap">
+            <input id="roomCodeInput" type="text" maxlength="8" placeholder="Codigo" />
+            <button id="joinRoomBtn" class="ghost">Unirme</button>
+          </div>
+          <p id="lobbyStatus" class="status"></p>
+        </div>
+
+        <div id="roomBox" class="hidden">
+          <div class="table-meta" id="roomMeta"></div>
+
+          <article class="panel subpanel">
+            <h3>Miembros en sala</h3>
+            <div id="roomMembersList" class="players-list"></div>
+            <div class="row-actions wrap">
+              <button id="startMatchBtn">Iniciar partida</button>
+              <button id="leaveRoomBtn" class="ghost">Salir de sala</button>
+            </div>
+          </article>
 
         <div id="tableBox" class="hidden">
           <div class="table-meta" id="roundMeta"></div>

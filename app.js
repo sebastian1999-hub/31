@@ -724,6 +724,11 @@ function showSummaryDialogIfNeeded() {
 function render() {
   const authed = Boolean(state.user);
 
+  if (!ui.authPanel || !ui.gamePanel || !ui.signOutBtn || !ui.sessionInfo || !ui.lobbyBox || !ui.roomBox) {
+    console.error("Estructura DOM incompleta: faltan elementos base de la vista.");
+    return;
+  }
+
   ui.authPanel.classList.toggle("hidden", authed);
   ui.gamePanel.classList.toggle("hidden", !authed);
   ui.signOutBtn.classList.toggle("hidden", !authed);
