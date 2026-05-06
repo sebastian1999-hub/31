@@ -619,6 +619,7 @@ function renderPlayers() {
   const current = getCurrentPlayer();
   ui.playersList.innerHTML = state.game.players
     .map((player) => {
+      const isMe = player.user_id === state.user?.id;
       const classes = ["player-row"];
       if (current?.id === player.id) {
         classes.push("current");
@@ -627,13 +628,23 @@ function renderPlayers() {
         classes.push("eliminated");
       }
 
-      let handScoreText = "";
-      if (state.game.round && state.game.round.hands[player.id]) {
+      let handScoreText = "<small class=\"muted\">puntuacion oculta</small>";
+      if (isMe && state.game.round && state.game.round.hands[player.id]) {
         const handScore = scoreHand(state.game.round.hands[player.id]);
         handScoreText = `<small class="muted">mano: ${handScore.score} (${handScore.bestSuit})</small>`;
       }
 
-      return `<div class="${classes.join(" ")}"><div><strong>${player.name}</strong><br/>${handScoreText}</div><span class="badge ${player.penalty >= 7 ? "warn" : "good"}">${player.eliminated ? "Eliminado" : `${player.penalty}/10`}</span></div>`;
+      let badgeText = "-";
+      let badgeClass = "badge";
+      if (player.eliminated) {
+        badgeText = "Eliminado";
+        badgeClass = "badge warn";
+      } else if (isMe) {
+        badgeText = `${player.penalty}/10`;
+        badgeClass = `badge ${player.penalty >= 7 ? "warn" : "good"}`;
+      }
+
+      return `<div class="${classes.join(" ")}"><div><strong>${player.name}</strong><br/>${handScoreText}</div><span class="${badgeClass}">${badgeText}</span></div>`;
     })
     .join("");
 }
