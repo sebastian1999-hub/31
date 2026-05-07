@@ -294,6 +294,10 @@ button.danger {
   position: relative;
 }
 
+.card.concealed {
+  cursor: default;
+}
+
 .card.discardable::after {
   content: "Descartar";
   position: absolute;

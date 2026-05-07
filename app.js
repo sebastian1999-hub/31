@@ -455,6 +455,7 @@ function startNewRoundInMemory() {
     hands,
     turns,
     hasDrawn: false,
+    awaitingDecision: false,
   };
 
   addLog(`Comienza ronda ${state.game.roundNumber}.`);
@@ -467,6 +468,7 @@ function moveNextTurn() {
   }
   state.game.round.currentIndex = (state.game.round.currentIndex + 1) % state.game.round.order.length;
   state.game.round.hasDrawn = false;
+  state.game.round.awaitingDecision = false;
 }
 
 function applyElimination() {
@@ -509,17 +511,21 @@ function finishRound({ reason, triggerPlayerId }) {
   }
 
   if (reason === "closure") {
+    const closer = scoring.find((x) => x.playerId === triggerPlayerId);
+    const hasHigher = scoring.some((x) => x.playerId !== triggerPlayerId && x.score > (closer?.score ?? -1));
     const lower = Math.min(...scoring.map((item) => item.score));
+
     for (const item of scoring) {
+      if (hasHigher && item.playerId === triggerPlayerId) {
+        continue;
+      }
       if (item.score === lower) {
         deltas[item.playerId] += 1;
       }
     }
 
-    const closer = scoring.find((x) => x.playerId === triggerPlayerId);
-    const hasHigher = scoring.some((x) => x.playerId !== triggerPlayerId && x.score > (closer?.score ?? -1));
     if (hasHigher) {
-      deltas[triggerPlayerId] += 2;
+      deltas[triggerPlayerId] = 2;
       addLog(`${closer?.name ?? "Jugador"} cerro con fallo y recibe +2 puntos.`);
     }
     addLog(`Ronda cerrada por ${closer?.name ?? "jugador"}.`);
@@ -568,6 +574,11 @@ async function startMatchOnline() {
 
 async function drawCard(source) {
   if (!state.game?.round || state.game.winnerId || !isMyTurn()) {
+    return;
+  }
+  if (state.game.round.awaitingDecision) {
+    addLog("Debes elegir pasar turno o cerrar ronda.");
+    render();
     return;
   }
   const player = getCurrentPlayer();
@@ -627,19 +638,37 @@ async function discardCard(cardId) {
   if (scoreHand(hand).score === 31) {
     finishRound({ reason: "exact31", triggerPlayerId: player.id });
   } else {
-    moveNextTurn();
+    state.game.round.awaitingDecision = true;
   }
 
   await persistGameState(state.game.winnerId ? "finished" : "playing");
   render();
 }
 
+async function passTurn() {
+  if (!state.game?.round || state.game.winnerId || !isMyTurn()) {
+    return;
+  }
+  if (!state.game.round.awaitingDecision) {
+    return;
+  }
+
+  moveNextTurn();
+  await persistGameState(state.game.winnerId ? "finished" : "playing");
+  render();
+}
+
 async function closeRound() {
-  if (!state.game?.round || state.game.round.hasDrawn || state.game.winnerId || !isMyTurn()) {
+  if (!state.game?.round || state.game.winnerId || !isMyTurn()) {
+    return;
+  }
+  if (!state.game.round.awaitingDecision) {
+    addLog("Debes descartar una carta antes de cerrar.");
+    render();
     return;
   }
   const player = getCurrentPlayer();
-  if ((state.game.round.turns[player.id] || 0) < 1) {
+  if ((state.game.round.turns[player.id] || 0) < 2) {
     addLog(`${player.name} aun no puede cerrar (solo desde su segundo turno).`);
     render();
     return;
@@ -737,7 +766,19 @@ async function playBotTurnIfNeeded() {
     if (scoreHand(hand).score === 31) {
       finishRound({ reason: "exact31", triggerPlayerId: player.id });
     } else {
-      moveNextTurn();
+      const myTurns = state.game.round.turns[player.id] || 0;
+      const myScore = scoreHand(hand).score;
+      const bestOther = Math.max(
+        ...state.game.round.order
+          .filter((id) => id !== player.id)
+          .map((id) => scoreHand(state.game.round.hands[id] || []).score),
+      );
+
+      if (myTurns >= 2 && myScore >= bestOther) {
+        finishRound({ reason: "closure", triggerPlayerId: player.id });
+      } else {
+        moveNextTurn();
+      }
     }
 
     await persistGameState(state.game.winnerId ? "finished" : "playing");
@@ -755,6 +796,10 @@ function getCardHtml(card, discardable) {
   }
   const safeAlt = `${card.label} de ${card.suit}`;
   return `<button class="${classes.join(" ")}" data-card-id="${card.id}" title="${safeAlt}"><img src="${card.image}" alt="${safeAlt}" /></button>`;
+}
+
+function getHiddenCardHtml() {
+  return `<div class="card concealed" aria-label="carta oculta"><img src="./spanish_deck/back.png" alt="Carta oculta" /></div>`;
 }
 
 function renderPile(container, card) {
@@ -852,6 +897,9 @@ function renderRound() {
 
   if (!state.game.round || state.game.winnerId) {
     clearBotTurnTimer();
+    ui.drawFromDeckBtn.textContent = "Robar del mazo";
+    ui.drawFromDiscardBtn.textContent = "Robar descarte";
+    ui.closeRoundBtn.classList.add("hidden");
     ui.drawFromDeckBtn.disabled = true;
     ui.drawFromDiscardBtn.disabled = true;
     ui.closeRoundBtn.disabled = true;
@@ -867,20 +915,34 @@ function renderRound() {
   const mine = current.user_id === state.user?.id;
   const botTurn = isBotPlayer(current);
   const hand = state.game.round.hands[current.id] || [];
+  const awaitingDecision = mine && Boolean(state.game.round.awaitingDecision);
 
-  ui.drawFromDeckBtn.disabled = !mine || state.game.round.hasDrawn;
-  ui.drawFromDiscardBtn.disabled = !mine || state.game.round.hasDrawn || state.game.round.discardPile.length === 0;
-  ui.closeRoundBtn.disabled = !mine || state.game.round.hasDrawn || (state.game.round.turns[current.id] || 0) < 1;
+  ui.drawFromDeckBtn.textContent = awaitingDecision ? "Pasar turno" : "Robar del mazo";
+  ui.drawFromDiscardBtn.textContent = awaitingDecision ? "Cerrar ronda" : "Robar descarte";
+  ui.closeRoundBtn.classList.add("hidden");
+
+  if (awaitingDecision) {
+    ui.drawFromDeckBtn.disabled = !mine;
+    ui.drawFromDiscardBtn.disabled = !mine || (state.game.round.turns[current.id] || 0) < 2;
+  } else {
+    ui.drawFromDeckBtn.disabled = !mine || state.game.round.hasDrawn;
+    ui.drawFromDiscardBtn.disabled = !mine || state.game.round.hasDrawn || state.game.round.discardPile.length === 0;
+  }
+  ui.closeRoundBtn.disabled = true;
 
   ui.turnHint.textContent = mine
-    ? state.game.round.hasDrawn
+    ? awaitingDecision
+      ? `Es tu turno (${current.name}). Elige pasar turno o cerrar ronda.`
+      : state.game.round.hasDrawn
       ? `Es tu turno (${current.name}). Elige una carta para descartar.`
       : `Es tu turno (${current.name}). Roba del mazo o descarte.`
     : botTurn
       ? `Turno de ${current.name}. Jugando automaticamente...`
       : `Turno de ${current.name}. Espera a que juegue.`;
 
-  ui.currentHand.innerHTML = hand.map((card) => getCardHtml(card, mine && state.game.round.hasDrawn)).join("");
+  ui.currentHand.innerHTML = mine
+    ? hand.map((card) => getCardHtml(card, mine && state.game.round.hasDrawn)).join("")
+    : hand.map(() => getHiddenCardHtml()).join("");
   renderPile(ui.drawPileCard, { image: "./spanish_deck/back.png", label: "dorso", suit: "" });
   renderPile(ui.discardPileCard, state.game.round.discardPile[state.game.round.discardPile.length - 1]);
   ui.drawCount.textContent = `${state.game.round.drawPile.length} cartas`;
@@ -1110,13 +1172,15 @@ ui.startMatchBtn.addEventListener("click", () => {
 });
 
 ui.drawFromDeckBtn.addEventListener("click", () => {
-  drawCard("deck").catch((error) => {
+  const task = state.game?.round?.awaitingDecision && isMyTurn() ? passTurn() : drawCard("deck");
+  task.catch((error) => {
     ui.lobbyStatus.textContent = `Error: ${error.message}`;
   });
 });
 
 ui.drawFromDiscardBtn.addEventListener("click", () => {
-  drawCard("discard").catch((error) => {
+  const task = state.game?.round?.awaitingDecision && isMyTurn() ? closeRound() : drawCard("discard");
+  task.catch((error) => {
     ui.lobbyStatus.textContent = `Error: ${error.message}`;
   });
 });
