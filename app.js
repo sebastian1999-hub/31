@@ -876,7 +876,22 @@ function renderMeta() {
   const ownerTag = state.room.owner_user_id === state.user?.id ? "(host)" : "";
   const botCount = getLobbyBots().length;
   const total = state.members.length + botCount;
-  ui.roomMeta.innerHTML = `<strong>Sala ${state.room.code}</strong> ${ownerTag} - ${total} jugador(es)`;
+
+  if (state.game) {
+    ui.roomMeta.innerHTML = `<span><strong>Sala ${state.room.code}</strong> ${ownerTag} - ${total} jugador(es)</span><button id="leaveRoomInGameBtn" class="ghost mini-btn">Abandonar sala</button>`;
+    const leaveInGameBtn = document.getElementById("leaveRoomInGameBtn");
+    if (leaveInGameBtn) {
+      leaveInGameBtn.addEventListener("click", () => {
+        withStatus(async () => {
+          await leaveRoom();
+          ui.lobbyStatus.textContent = "Saliste de la sala.";
+          render();
+        });
+      });
+    }
+  } else {
+    ui.roomMeta.innerHTML = `<strong>Sala ${state.room.code}</strong> ${ownerTag} - ${total} jugador(es)`;
+  }
 }
 
 function renderRound() {
