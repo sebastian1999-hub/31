@@ -835,6 +835,8 @@ function renderPlayers() {
   ui.playersList.innerHTML = state.game.players
     .map((player) => {
       const isMe = player.user_id === state.user?.id;
+      const penaltyRaw = player.penalty ?? player.penalty_points ?? player.penaltyPoints ?? 0;
+      const penaltyPoints = Number.isFinite(Number(penaltyRaw)) ? Number(penaltyRaw) : 0;
       const classes = ["player-row"];
       if (current?.id === player.id) {
         classes.push("current");
@@ -843,20 +845,20 @@ function renderPlayers() {
         classes.push("eliminated");
       }
 
-      let handScoreText = "<small class=\"muted\">puntuacion oculta</small>";
+      let handScoreText = "<small class=\"muted\">valor de mano oculto</small>";
       if (isMe && state.game.round && state.game.round.hands[player.id]) {
         const handScore = scoreHand(state.game.round.hands[player.id]);
         handScoreText = `<small class="muted">mano: ${handScore.score} (${handScore.bestSuit})</small>`;
       }
 
-      let badgeText = `${player.penalty}/10`;
-      let badgeClass = `badge ${player.penalty >= 7 ? "warn" : "good"}`;
+      let badgeText = `${penaltyPoints}/10`;
+      let badgeClass = `badge ${penaltyPoints >= 7 ? "warn" : "good"}`;
       if (player.eliminated) {
         badgeText = "Eliminado";
         badgeClass = "badge warn";
       }
 
-      return `<div class="${classes.join(" ")}"><div><strong>${player.name}</strong><br/>${handScoreText}</div><span class="${badgeClass}">${badgeText}</span></div>`;
+      return `<div class="${classes.join(" ")}"><div><strong>${player.name}</strong><br/>${handScoreText}<br/><small class="muted">penalizacion: ${penaltyPoints}/10</small></div><span class="${badgeClass}">${badgeText}</span></div>`;
     })
     .join("");
 }
