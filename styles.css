@@ -147,6 +147,13 @@ button:hover {
   box-shadow: 0 6px 16px rgba(15, 106, 89, 0.25);
 }
 
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 button.ghost {
   background: #fff;
   color: var(--ink);
@@ -292,6 +299,14 @@ button.danger {
 .card {
   cursor: pointer;
   position: relative;
+  padding: 0;
+  color: inherit;
+  appearance: none;
+}
+
+.card:hover {
+  transform: none;
+  box-shadow: 0 8px 14px rgba(28, 26, 23, 0.13);
 }
 
 .card.concealed {

@@ -916,6 +916,7 @@ function renderRound() {
   const botTurn = isBotPlayer(current);
   const hand = state.game.round.hands[current.id] || [];
   const awaitingDecision = mine && Boolean(state.game.round.awaitingDecision);
+  const hasAlreadyDrawn = Boolean(state.game.round.hasDrawn);
 
   ui.drawFromDeckBtn.textContent = awaitingDecision ? "Pasar turno" : "Robar del mazo";
   ui.drawFromDiscardBtn.textContent = awaitingDecision ? "Cerrar ronda" : "Robar descarte";
@@ -924,9 +925,12 @@ function renderRound() {
   if (awaitingDecision) {
     ui.drawFromDeckBtn.disabled = !mine;
     ui.drawFromDiscardBtn.disabled = !mine || (state.game.round.turns[current.id] || 0) < 2;
+  } else if (hasAlreadyDrawn) {
+    ui.drawFromDeckBtn.disabled = true;
+    ui.drawFromDiscardBtn.disabled = true;
   } else {
-    ui.drawFromDeckBtn.disabled = !mine || state.game.round.hasDrawn;
-    ui.drawFromDiscardBtn.disabled = !mine || state.game.round.hasDrawn || state.game.round.discardPile.length === 0;
+    ui.drawFromDeckBtn.disabled = !mine;
+    ui.drawFromDiscardBtn.disabled = !mine || state.game.round.discardPile.length === 0;
   }
   ui.closeRoundBtn.disabled = true;
 
