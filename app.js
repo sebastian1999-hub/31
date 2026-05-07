@@ -19,6 +19,7 @@ const RANKS = [
 
 const MAX_NEGATIVE_POINTS = 10;
 const POLL_MS = 1800;
+const BOT_TURN_DELAY_MS = 900;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -42,6 +43,7 @@ const ui = {
   roomMeta: document.getElementById("roomMeta"),
   roomMembersList: document.getElementById("roomMembersList"),
   startMatchBtn: document.getElementById("startMatchBtn"),
+  addBotBtn: document.getElementById("addBotBtn"),
 
   tableBox: document.getElementById("tableBox"),
   roundMeta: document.getElementById("roundMeta"),
@@ -68,6 +70,8 @@ const state = {
   members: [],
   game: null,
   pollTimer: null,
+  botTurnTimer: null,
+  botTurnBusy: false,
 };
 
 function uid() {
@@ -156,6 +160,61 @@ function randomCode() {
   return out;
 }
 
+function isBotPlayer(player) {
+  return Boolean(player?.isBot);
+}
+
+function getLobbyBots() {
+  const bots = state.room?.game_state?.lobbyBots;
+  return Array.isArray(bots) ? bots : [];
+}
+
+function clearBotTurnTimer() {
+  if (state.botTurnTimer) {
+    window.clearTimeout(state.botTurnTimer);
+    state.botTurnTimer = null;
+  }
+}
+
+async function addBotToLobby() {
+  if (!state.room?.id) {
+    return;
+  }
+  if (state.room.owner_user_id !== state.user?.id) {
+    throw new Error("Solo el host puede anadir bots.");
+  }
+  if (state.room.status !== "lobby") {
+    throw new Error("Solo puedes anadir bots antes de iniciar la partida.");
+  }
+
+  const bots = getLobbyBots();
+  const totalPlayers = state.members.length + bots.length;
+  if (totalPlayers >= 6) {
+    throw new Error("Maximo 6 jugadores por sala.");
+  }
+
+  const nextNumber = bots.length + 1;
+  const nextBots = [...bots, { id: uid(), name: `Bot ${nextNumber}` }];
+  const nextGameState = {
+    ...(state.room.game_state || {}),
+    lobbyBots: nextBots,
+  };
+
+  const { data, error } = await supabase
+    .from("game31_rooms")
+    .update({ game_state: nextGameState, updated_at: new Date().toISOString() })
+    .eq("id", state.room.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  state.room = data;
+  await syncRoomFromServer();
+}
+
 async function withStatus(task) {
   ui.lobbyStatus.textContent = "Procesando...";
   try {
@@ -210,6 +269,7 @@ function stopPollingRoom() {
     window.clearInterval(state.pollTimer);
     state.pollTimer = null;
   }
+  clearBotTurnTimer();
 }
 
 async function persistGameState(status = "playing") {
@@ -310,18 +370,25 @@ async function leaveRoom() {
 }
 
 function initialGameFromMembers() {
-  if (state.members.length < 2 || state.members.length > 6) {
+  const lobbyBots = getLobbyBots();
+  const allLobbyPlayers = [
+    ...state.members.map((m) => ({ user_id: m.user_id, name: m.display_name, isBot: false })),
+    ...lobbyBots.map((b) => ({ user_id: null, name: b.name, isBot: true })),
+  ];
+
+  if (allLobbyPlayers.length < 2 || allLobbyPlayers.length > 6) {
     throw new Error("La sala necesita entre 2 y 6 jugadores.");
   }
 
   return {
-    players: state.members.map((m, idx) => ({
+    players: allLobbyPlayers.map((m, idx) => ({
       id: uid(),
       user_id: m.user_id,
-      name: m.display_name,
+      name: m.name,
       seat: idx,
       penalty: 0,
       eliminated: false,
+      isBot: m.isBot,
     })),
     round: null,
     roundNumber: 0,
@@ -583,6 +650,104 @@ async function closeRound() {
   render();
 }
 
+function getBestScoreAfterDiscard(hand) {
+  let best = -1;
+  for (let i = 0; i < hand.length; i += 1) {
+    const candidate = hand.filter((_, idx) => idx !== i);
+    const candidateScore = scoreHand(candidate).score;
+    if (candidateScore > best) {
+      best = candidateScore;
+    }
+  }
+  return best;
+}
+
+function chooseBotDiscardIndex(hand) {
+  let bestIndex = 0;
+  let bestScore = -1;
+  for (let i = 0; i < hand.length; i += 1) {
+    const candidate = hand.filter((_, idx) => idx !== i);
+    const candidateScore = scoreHand(candidate).score;
+    if (candidateScore > bestScore) {
+      bestScore = candidateScore;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+async function playBotTurnIfNeeded() {
+  if (!state.game?.round || state.game.winnerId || state.botTurnBusy) {
+    return;
+  }
+  const player = getCurrentPlayer();
+  if (!isBotPlayer(player)) {
+    return;
+  }
+
+  state.botTurnBusy = true;
+  try {
+    const hand = state.game.round.hands[player.id] || [];
+    if (hand.length !== 3 || state.game.round.hasDrawn) {
+      return;
+    }
+
+    let source = "deck";
+    const topDiscard = state.game.round.discardPile[state.game.round.discardPile.length - 1] || null;
+    if (topDiscard) {
+      const currentBest = scoreHand(hand).score;
+      const bestUsingDiscard = getBestScoreAfterDiscard([...hand, topDiscard]);
+      if (bestUsingDiscard > currentBest) {
+        source = "discard";
+      }
+    }
+
+    let drawn = null;
+    if (source === "deck") {
+      refillDrawPileIfNeeded();
+      drawn = state.game.round.drawPile.pop() || null;
+    } else {
+      drawn = state.game.round.discardPile.pop() || null;
+    }
+
+    if (!drawn) {
+      source = "deck";
+      refillDrawPileIfNeeded();
+      drawn = state.game.round.drawPile.pop() || null;
+    }
+
+    if (!drawn) {
+      addLog(`${player.name} no pudo robar y pierde su turno.`);
+      moveNextTurn();
+      await persistGameState(state.game.winnerId ? "finished" : "playing");
+      return;
+    }
+
+    hand.push(drawn);
+    state.game.round.hasDrawn = true;
+    addLog(`${player.name} roba ${source === "discard" ? "descarte" : "mazo"}.`);
+
+    const discardIdx = chooseBotDiscardIndex(hand);
+    const [discarded] = hand.splice(discardIdx, 1);
+    state.game.round.discardPile.push(discarded);
+    state.game.round.turns[player.id] += 1;
+    state.game.round.hasDrawn = false;
+    addLog(`${player.name} descarta ${cardToText(discarded)}.`);
+
+    if (scoreHand(hand).score === 31) {
+      finishRound({ reason: "exact31", triggerPlayerId: player.id });
+    } else {
+      moveNextTurn();
+    }
+
+    await persistGameState(state.game.winnerId ? "finished" : "playing");
+    await syncRoomFromServer();
+    render();
+  } finally {
+    state.botTurnBusy = false;
+  }
+}
+
 function getCardHtml(card, discardable) {
   const classes = ["card"];
   if (discardable) {
@@ -603,12 +768,15 @@ function renderPile(container, card) {
 }
 
 function renderRoomMembers() {
-  ui.roomMembersList.innerHTML = state.members
-    .map((m) => {
+  const memberRows = state.members.map((m) => {
       const mine = m.user_id === state.user?.id ? "(tu)" : "";
       return `<div class="player-row"><div><strong>${m.display_name}</strong> ${mine}</div><span class="badge">online</span></div>`;
-    })
-    .join("");
+    });
+  const botRows = getLobbyBots().map((bot) => {
+    return `<div class="player-row"><div><strong>${bot.name}</strong> (bot)</div><span class="badge bot">bot</span></div>`;
+  });
+
+  ui.roomMembersList.innerHTML = [...memberRows, ...botRows].join("");
 }
 
 function renderPlayers() {
@@ -659,7 +827,9 @@ function renderMeta() {
     return;
   }
   const ownerTag = state.room.owner_user_id === state.user?.id ? "(host)" : "";
-  ui.roomMeta.innerHTML = `<strong>Sala ${state.room.code}</strong> ${ownerTag} - ${state.members.length} jugador(es)`;
+  const botCount = getLobbyBots().length;
+  const total = state.members.length + botCount;
+  ui.roomMeta.innerHTML = `<strong>Sala ${state.room.code}</strong> ${ownerTag} - ${total} jugador(es)`;
 }
 
 function renderRound() {
@@ -681,6 +851,7 @@ function renderRound() {
   }
 
   if (!state.game.round || state.game.winnerId) {
+    clearBotTurnTimer();
     ui.drawFromDeckBtn.disabled = true;
     ui.drawFromDiscardBtn.disabled = true;
     ui.closeRoundBtn.disabled = true;
@@ -694,6 +865,7 @@ function renderRound() {
 
   const current = getCurrentPlayer();
   const mine = current.user_id === state.user?.id;
+  const botTurn = isBotPlayer(current);
   const hand = state.game.round.hands[current.id] || [];
 
   ui.drawFromDeckBtn.disabled = !mine || state.game.round.hasDrawn;
@@ -704,7 +876,9 @@ function renderRound() {
     ? state.game.round.hasDrawn
       ? `Es tu turno (${current.name}). Elige una carta para descartar.`
       : `Es tu turno (${current.name}). Roba del mazo o descarte.`
-    : `Turno de ${current.name}. Espera a que juegue.`;
+    : botTurn
+      ? `Turno de ${current.name}. Jugando automaticamente...`
+      : `Turno de ${current.name}. Espera a que juegue.`;
 
   ui.currentHand.innerHTML = hand.map((card) => getCardHtml(card, mine && state.game.round.hasDrawn)).join("");
   renderPile(ui.drawPileCard, { image: "./spanish_deck/back.png", label: "dorso", suit: "" });
@@ -718,6 +892,15 @@ function renderRound() {
         ui.lobbyStatus.textContent = `Error: ${error.message}`;
       });
     });
+  }
+
+  if (botTurn && !state.botTurnTimer && !state.botTurnBusy) {
+    state.botTurnTimer = window.setTimeout(() => {
+      state.botTurnTimer = null;
+      playBotTurnIfNeeded().catch((error) => {
+        ui.lobbyStatus.textContent = `Error: ${error.message}`;
+      });
+    }, BOT_TURN_DELAY_MS);
   }
 }
 
@@ -748,6 +931,12 @@ function render() {
   const inRoom = Boolean(state.room);
   ui.lobbyBox.classList.toggle("hidden", inRoom);
   ui.roomBox.classList.toggle("hidden", !inRoom);
+
+  if (ui.addBotBtn) {
+    const isHost = state.room?.owner_user_id === state.user?.id;
+    const canAddBot = Boolean(isHost && state.room?.status === "lobby" && (state.members.length + getLobbyBots().length) < 6);
+    ui.addBotBtn.disabled = !canAddBot;
+  }
 
   if (!authed) {
     return;
@@ -892,6 +1081,17 @@ ui.leaveRoomBtn.addEventListener("click", () => {
   withStatus(async () => {
     await leaveRoom();
     ui.lobbyStatus.textContent = "Saliste de la sala.";
+    render();
+  });
+});
+
+ui.addBotBtn.addEventListener("click", () => {
+  withStatus(async () => {
+    if (!state.room) {
+      return;
+    }
+    await addBotToLobby();
+    ui.lobbyStatus.textContent = "Bot anadido a la sala.";
     render();
   });
 });

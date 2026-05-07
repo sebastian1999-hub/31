@@ -243,6 +243,11 @@ button.danger {
   color: #095941;
 }
 
+.badge.bot {
+  background: #e7efff;
+  color: #21408f;
+}
+
 .deck-zone {
   display: flex;
   gap: 22px;
