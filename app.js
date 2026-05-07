@@ -44,6 +44,7 @@ const ui = {
   roomMembersList: document.getElementById("roomMembersList"),
   startMatchBtn: document.getElementById("startMatchBtn"),
   addBotBtn: document.getElementById("addBotBtn"),
+  lobbyMembersPanel: document.getElementById("lobbyMembersPanel"),
 
   tableBox: document.getElementById("tableBox"),
   roundMeta: document.getElementById("roundMeta"),
@@ -774,7 +775,7 @@ async function playBotTurnIfNeeded() {
           .map((id) => scoreHand(state.game.round.hands[id] || []).score),
       );
 
-      if (myTurns >= 2 && myScore >= bestOther) {
+      if (myTurns >= 2 && myScore > bestOther) {
         finishRound({ reason: "closure", triggerPlayerId: player.id });
       } else {
         moveNextTurn();
@@ -1012,8 +1013,11 @@ function render() {
   renderRoomMembers();
   renderPlayers();
   renderRound();
-  renderLog();
   showSummaryDialogIfNeeded();
+
+  if (ui.lobbyMembersPanel) {
+    ui.lobbyMembersPanel.classList.toggle("hidden", Boolean(state.game));
+  }
 }
 
 async function discoverCurrentRoom() {
