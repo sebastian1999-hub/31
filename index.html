@@ -75,39 +75,50 @@
         <div id="tableBox" class="hidden">
           <div class="table-meta" id="roundMeta"></div>
 
-          <div class="table-grid">
-            <article class="panel subpanel">
-              <h3>Mano del turno actual</h3>
-              <p id="turnHint" class="muted"></p>
-              <div id="currentHand" class="hand"></div>
-            </article>
-
-            <article class="panel subpanel">
-              <h3>Mesa</h3>
-              <div class="deck-zone">
-                <div>
-                  <p class="muted mini">Mazo</p>
-                  <div class="card-stack" id="drawPileCard"></div>
-                  <p id="drawCount" class="mini"></p>
-                </div>
-                <div>
-                  <p class="muted mini">Descarte</p>
-                  <div class="card-stack" id="discardPileCard"></div>
-                </div>
+          <div id="winnerBox" class="hidden">
+            <article class="panel subpanel winner-panel">
+              <h3 id="winnerTitle"></h3>
+              <div class="row-actions">
+                <button id="leaveAfterWinBtn">Salir de la sala</button>
               </div>
-              <div class="row-actions wrap">
-                <button id="drawFromDeckBtn">Robar del mazo</button>
-                <button id="drawFromDiscardBtn" class="ghost">Robar descarte</button>
-                <button id="closeRoundBtn" class="danger">Cerrar ronda</button>
-              </div>
-              <p class="muted mini">Roba, descarta una carta y luego elige pasar turno o cerrar ronda.</p>
             </article>
           </div>
 
-          <article class="panel subpanel">
-            <h3>Jugadores</h3>
-            <div id="playersList" class="players-list"></div>
-          </article>
+          <div id="gameplayBox">
+            <div class="table-grid">
+              <article class="panel subpanel">
+                <h3>Mano del turno actual</h3>
+                <p id="turnHint" class="muted"></p>
+                <div id="currentHand" class="hand"></div>
+              </article>
+
+              <article class="panel subpanel">
+                <h3>Mesa</h3>
+                <div class="deck-zone">
+                  <div>
+                    <p class="muted mini">Mazo</p>
+                    <div class="card-stack" id="drawPileCard"></div>
+                    <p id="drawCount" class="mini"></p>
+                  </div>
+                  <div>
+                    <p class="muted mini">Descarte</p>
+                    <div class="card-stack" id="discardPileCard"></div>
+                  </div>
+                </div>
+                <div class="row-actions wrap">
+                  <button id="drawFromDeckBtn">Robar del mazo</button>
+                  <button id="drawFromDiscardBtn" class="ghost">Robar descarte</button>
+                  <button id="closeRoundBtn" class="danger">Cerrar ronda</button>
+                </div>
+                <p class="muted mini">Roba, descarta una carta y luego elige pasar turno o cerrar ronda.</p>
+              </article>
+            </div>
+
+            <article class="panel subpanel">
+              <h3>Jugadores</h3>
+              <div id="playersList" class="players-list"></div>
+            </article>
+          </div>
 
           </div>
         </div>

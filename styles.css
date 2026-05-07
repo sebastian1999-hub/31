@@ -230,7 +230,7 @@ button.mini-btn {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .player-row.current {
@@ -249,6 +249,8 @@ button.mini-btn {
   font-size: 0.85rem;
   font-weight: 700;
   background: #f0ece1;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .badge.warn {
@@ -264,6 +266,29 @@ button.mini-btn {
 .badge.bot {
   background: #e7efff;
   color: #21408f;
+}
+
+.points-indicator {
+  font-size: 0.95rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--brand);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.winner-panel {
+  text-align: center;
+  background: linear-gradient(135deg, #dcffed 0%, #edfff8 100%);
+  border-color: var(--brand);
+  border-width: 2px;
+}
+
+.winner-panel h3 {
+  font-size: 1.8rem;
+  color: var(--brand);
+  margin-bottom: 20px;
 }
 
 .deck-zone {

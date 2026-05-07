@@ -47,6 +47,8 @@ const ui = {
   lobbyMembersPanel: document.getElementById("lobbyMembersPanel"),
 
   tableBox: document.getElementById("tableBox"),
+  winnerBox: document.getElementById("winnerBox"),
+  gameplayBox: document.getElementById("gameplayBox"),
   roundMeta: document.getElementById("roundMeta"),
   playersList: document.getElementById("playersList"),
   drawPileCard: document.getElementById("drawPileCard"),
@@ -845,20 +847,21 @@ function renderPlayers() {
         classes.push("eliminated");
       }
 
-      let handScoreText = "<small class=\"muted\">valor de mano oculto</small>";
-      if (isMe && state.game.round && state.game.round.hands[player.id]) {
-        const handScore = scoreHand(state.game.round.hands[player.id]);
-        handScoreText = `<small class="muted">mano: ${handScore.score} (${handScore.bestSuit})</small>`;
+      // Crear indicador visual de puntos
+      let pointsIndicator = "";
+      if (!player.eliminated) {
+        const filledDots = Math.min(penaltyPoints, 10);
+        const emptyDots = 10 - filledDots;
+        const dots = "●".repeat(filledDots) + "○".repeat(emptyDots);
+        pointsIndicator = `<div class="points-indicator" title="Puntos de penalizacion: ${penaltyPoints}/10">${dots}</div>`;
       }
 
-      let badgeText = `${penaltyPoints}/10`;
-      let badgeClass = `badge ${penaltyPoints >= 7 ? "warn" : "good"}`;
-      if (player.eliminated) {
-        badgeText = "Eliminado";
-        badgeClass = "badge warn";
-      }
+      let badgeText = player.eliminated ? "Eliminado" : `${penaltyPoints}/10`;
+      let badgeClass = `badge ${
+        player.eliminated ? "warn" : penaltyPoints >= 7 ? "warn" : "good"
+      }`;
 
-      return `<div class="${classes.join(" ")}"><div><strong>${player.name}</strong><br/>${handScoreText}<br/><small class="muted">penalizacion: ${penaltyPoints}/10</small></div><span class="${badgeClass}">${badgeText}</span></div>`;
+      return `<div class="${classes.join(" ")}"><strong>${player.name}</strong>${pointsIndicator}<span class="${badgeClass}">${badgeText}</span></div>`;
     })
     .join("");
 }
@@ -903,15 +906,35 @@ function renderRound() {
 
   const winner = state.game.players.find((p) => p.id === state.game.winnerId);
   if (winner) {
-    ui.roundMeta.innerHTML = `<strong>Partida finalizada.</strong> Ganador: ${winner.name}.`;
-  } else if (!state.game.round) {
+    ui.gameplayBox.classList.add("hidden");
+    ui.winnerBox.classList.remove("hidden");
+    document.getElementById("winnerTitle").textContent = `🎉 Ganador: ${winner.name}`;
+    
+    const leaveBtn = document.getElementById("leaveAfterWinBtn");
+    if (leaveBtn && !leaveBtn.hasListener) {
+      leaveBtn.hasListener = true;
+      leaveBtn.addEventListener("click", () => {
+        withStatus(async () => {
+          await leaveRoom();
+          ui.lobbyStatus.textContent = "Saliste de la sala.";
+          render();
+        });
+      });
+    }
+    return;
+  }
+
+  ui.gameplayBox.classList.remove("hidden");
+  ui.winnerBox.classList.add("hidden");
+
+  if (!state.game.round) {
     ui.roundMeta.textContent = "Ronda terminada. Pulsa continuar.";
   } else {
     const current = getCurrentPlayer();
     ui.roundMeta.innerHTML = `<strong>Ronda ${state.game.roundNumber}</strong> - turno de ${current?.name || "-"}`;
   }
 
-  if (!state.game.round || state.game.winnerId) {
+  if (!state.game.round) {
     clearBotTurnTimer();
     ui.drawFromDeckBtn.textContent = "Robar del mazo";
     ui.drawFromDiscardBtn.textContent = "Robar descarte";
