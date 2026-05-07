@@ -288,6 +288,7 @@ async function persistGameState(status = "playing") {
     throw error;
   }
   state.room = data;
+  state.game = data.game_state || null;
 }
 
 async function createRoom() {
