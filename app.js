@@ -849,14 +849,11 @@ function renderPlayers() {
         handScoreText = `<small class="muted">mano: ${handScore.score} (${handScore.bestSuit})</small>`;
       }
 
-      let badgeText = "-";
-      let badgeClass = "badge";
+      let badgeText = `${player.penalty}/10`;
+      let badgeClass = `badge ${player.penalty >= 7 ? "warn" : "good"}`;
       if (player.eliminated) {
         badgeText = "Eliminado";
         badgeClass = "badge warn";
-      } else if (isMe) {
-        badgeText = `${player.penalty}/10`;
-        badgeClass = `badge ${player.penalty >= 7 ? "warn" : "good"}`;
       }
 
       return `<div class="${classes.join(" ")}"><div><strong>${player.name}</strong><br/>${handScoreText}</div><span class="${badgeClass}">${badgeText}</span></div>`;
